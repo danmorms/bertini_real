@@ -15,9 +15,9 @@ We are using a surface **"octdong"** in this example, so you will be running the
 
     br.data.gather() # do this once after decomposing and sampling the surface.
 
-    surface = br.data.read_most_recent()
+    surf = br.data.read_most_recent()
 
-    pieces = surface.separate_into_nonsingular_pieces()
+    pieces = surf.separate_into_nonsingular_pieces()
 
 This will only need to be done once per surface
 
@@ -26,7 +26,7 @@ for now, copy these files into the current directory by running:
 
 ::
 
-  surface.copy_all_scad_files_here()
+  br.surface.copy_all_scad_files_here()
 
 Next we need to write to those files with the data of each piece of the surface.
 ::
