@@ -8,7 +8,7 @@
 # Fall 2018 - Spring 2019
 #
 # Silviana Amethyst
-# Spring 2022, Summer 2022
+# Spring 2022
 #
 # University of Wisconsin, Eau Claire
 
@@ -38,24 +38,10 @@ import trimesh
 
 
 
-_default_file_type = 'stl'
-
-_default_solidify_thickness =  0.1
-
-_default_piece_basename_smooth = 'br_piece_smooth'
-_default_piece_basename_raw = 'br_piece_raw'
-
-_default_surface_basename_smooth = 'br_surface_smooth'
-_default_surface_basename_raw = 'br_surface_raw'
 
 
 
-def export_mesh(mesh, basename, autoname_using_folder=False, file_type=_default_file_type, verbose=True):
-    """
-    Saves a mesh (generated elsewhere) to disk,
-    and returns the name of the file which was saved
-    """
-
+def export_mesh(mesh, basename, autoname_using_folder=False, file_type='stl'):
 
     if autoname_using_folder:
         fileName = os.getcwd().split(os.sep)[-1]
@@ -64,11 +50,7 @@ def export_mesh(mesh, basename, autoname_using_folder=False, file_type=_default_
         outname = f'{basename}.{file_type}'
 
     mesh.export(file_obj=outname, file_type=file_type)
-
-    if verbose:
-        print("Exported \x1b[0;35;40m " + outname + "\x1b[0m successfully")
-
-    return outname
+    print("Exported \x1b[0;35;40m " + outname + "\x1b[0m successfully")
 
 
 def solidify_mesh(mesh, distance, offset=0):
@@ -300,53 +282,32 @@ class Piece():
 
 
 
+    def export_smooth(self, basename=f'br_piece_smooth',autoname_using_folder=False,file_type='stl'):
+        if basename=='br_piece_smooth':
+            basename = basename+'_'+ ('-'.join([str(i) for i in self.indices[:3]]))
+
+        self.surface.export_smooth(self.indices,basename,autoname_using_folder,file_type)
+
+    def export_raw(self, basename=f'br_piece_raw',autoname_using_folder=False,file_type='stl'):
+        if basename=='br_piece_raw':
+            basename = basename+'_'+ ('-'.join([str(i) for i in self.indices[:3]]))
+
+        self.surface.export_raw(self.indices,basename,autoname_using_folder,file_type)
 
 
 
+    def solidify_raw(self, distance=0.1, basename='br_piece_raw', autoname_using_folder=False,file_type='stl'):
+        if basename=='br_piece_raw':
+            basename = basename+'_'+ ('-'.join([str(i) for i in self.indices[:3]]))
 
-    def generate_filename_no_ext(self,basename):
-        """ 
-        construct a filename for the piece, using face indices to make unique.  
-        generates without an extension, so that it can be added later
-        """
+        self.surface.solidify_raw(distance, self.indices,basename,autoname_using_folder,file_type)
 
-        return basename+'_'+ ('-'.join([str(i) for i in self.indices[: min(len(self.indices),3) ]])) # have to use `min` in case piece has <3 faces on it
+    def solidify_smooth(self, distance=0.1, basename='br_piece_smooth', autoname_using_folder=False,file_type='stl'):
 
+        if basename=='br_piece_smooth':
+            basename = basename+'_'+ ('-'.join([str(i) for i in self.indices[:3]]))
 
-    def generate_filename_smooth(self, file_type=_default_file_type):
-        return '{}.{}'.format( self.generate_filename_no_ext(basename=_default_piece_basename_smooth), file_type)
-
-    def generate_filename_raw(self, file_type=_default_file_type):
-        return '{}.{}'.format( self.generate_filename_no_ext(basename=_default_piece_basename_raw), file_type)
-
-
-    def export_smooth(self, basename=_default_piece_basename_smooth,autoname_using_folder=False,file_type=_default_file_type):
-
-        filename_no_ext = self.generate_filename_no_ext(basename)
-        self.surface.export_smooth(self.indices,filename_no_ext,autoname_using_folder,file_type)
-
-
-    def export_raw(self, basename=_default_piece_basename_raw,autoname_using_folder=False,file_type=_default_file_type):
-
-        filename_no_ext = self.generate_filename_no_ext(basename)
-        self.surface.export_raw(self.indices,filename_no_ext,autoname_using_folder,file_type)
-
-
-
-
-    def solidify_smooth(self, distance=_default_solidify_thickness, basename=_default_piece_basename_smooth, autoname_using_folder=False,file_type=_default_file_type):
-
-        filename_no_ext = self.generate_filename_no_ext(basename)
-        self.surface.solidify_smooth(distance, self.indices,filename_no_ext,autoname_using_folder,file_type)
-
-
-    def solidify_raw(self, distance=_default_solidify_thickness, basename=_default_piece_basename_raw, autoname_using_folder=False,file_type=_default_file_type):
-
-        filename_no_ext = self.generate_filename_no_ext(basename)
-        self.surface.solidify_raw(distance, self.indices,filename_no_ext,autoname_using_folder,file_type)
-
-
-
+        self.surface.solidify_smooth(distance, self.indices,basename,autoname_using_folder,file_type)
 
 
 
@@ -559,7 +520,7 @@ class Surface(Decomposition):
         return val
 
     def cannot_possibly_meet(self, f, g):
-        """ Check whether faces f and g cannot possibly meet (because they are in different fiber intervals of the projection)
+        """ Check whether faces f and g meet
 
             :param f: Current face
             :param g: Other face
@@ -699,8 +660,7 @@ class Surface(Decomposition):
         return val
 
     def is_edge_degenerate(self, e):
-        """ 
-        Check if critical point slices are degenerate (one of the endpoints is also the middle point)
+        """ Check if critical point slices are degenerate (one of the endpoints is also the middle point)
 
             :param e: Critical point slices
             :rtype: Return True if e is degenerate
@@ -708,9 +668,7 @@ class Surface(Decomposition):
         return (e[0] == e[1]) or (e[1] == e[2])
 
     def separate_into_nonsingular_pieces(self):
-        """ 
-        Separate a surface into a list of pieces, connected at singularities
-        """
+        """ Separate a surface into nonsingular pieces """
 
         self.check_data()
 
@@ -729,9 +687,7 @@ class Surface(Decomposition):
         return pieces
 
     def write_piece_data(self):
-        """
-        Opens and edits current scad data to set the orientation and location of a plug and socket
-        """
+        """"Opens and edits current scad data to set the orientation and location of a plug and socket"""
 
         pieces = self.separate_into_nonsingular_pieces()
 
@@ -792,15 +748,15 @@ class Surface(Decomposition):
             sing_directions[sing_index] = (direction0)
             sing_locations[sing_index] = (list(sing_coords))
 
-        piece_names = []
+        piece_indices = []
         singularities_on_pieces = []
 
 
         singindex2int = {sing_index:ii for ii,sing_index in enumerate(wanted_sing_connections.keys())}
         int2singindex = {ii:sing_index for ii,sing_index in enumerate(wanted_sing_connections.keys())}
 
-        # print(singindex2int)
-        # print(int2singindex)
+        print(singindex2int)
+        print(int2singindex)
 
         #organize the data computed above to the scad files
         for ii,p in enumerate(pieces):
@@ -810,7 +766,7 @@ class Surface(Decomposition):
                 if sing_index in sings_on_pieces[ii]: 
                     sings_this_piece.append(singindex2int[sing_index])
             singularities_on_pieces.append(sings_this_piece) 
-            piece_names.append(pieces[ii].generate_filename_smooth()) 
+            piece_indices.append(pieces[ii].indices[:4]) 
 
         sing_directions_as_list = [sing_directions[sing_index] for sing_index in wanted_sing_connections.keys()]
         sing_locations_as_list = [sing_locations[sing_index] for sing_index in wanted_sing_connections.keys()]
@@ -820,12 +776,9 @@ class Surface(Decomposition):
             parity_of_sing_by_piece[singindex2int[sing_index]][ps[0]] = -1
             parity_of_sing_by_piece[singindex2int[sing_index]][ps[1]] = 1
         
-        #open and auto write the data(piece file names (without extensions), all sings of pieces, sing directions in order of sing index, sing coords in order of sing index) of the piece
+        #open and auto write the data(piece indices, all sings of pieces, sing directions in order of sing index, sing coords in order of sing index) of the piece
         with open("br_surf_piece_data.scad", "w") as f:
-            f.write(f'piece_names = [')
-            f.write('"{}"'.format( '","'.join(piece_names) ))
-
-            f.write('];\n')
+            f.write(f'piece_indices = {piece_indices};\n')
             f.write(f'singularities_on_pieces = {singularities_on_pieces};\n')
             f.write(f'sing_directions = {sing_directions_as_list};\n')
             f.write(f'sing_locations = {sing_locations_as_list};\n')
@@ -1045,26 +998,22 @@ class Surface(Decomposition):
 
 
 
-    def export_raw(self, which_faces=None, basename=_default_surface_basename_raw, autoname_using_folder=False, file_type=_default_file_type):
-        """ 
-        Export raw decomposition of surface
 
-        returns the name of the file which was saved
-        """
+
+    def export_raw(self, which_faces=None, basename='br_surface_raw', autoname_using_folder=False, file_type='stl'):
+        """ Export raw decomposition of surfaces to OBJ """
+
 
         mesh = self.as_mesh_raw(which_faces)
-        return export_mesh(mesh, basename, autoname_using_folder, file_type)
+        export_mesh(mesh, basename, autoname_using_folder, file_type)
 
 
-    def export_smooth(self, which_faces=None, basename=_default_surface_basename_smooth, autoname_using_folder=False, file_type=_default_file_type):
-        """ 
-        Export smooth decomposition of surface
-        
-        returns the name of the file which was saved
-        """
+    def export_smooth(self, which_faces=None, basename='br_surface_smooth', autoname_using_folder=False, file_type='stl'):
+        """ Export smooth decomposition of surfaces to OBJ """
+
 
         mesh = self.as_mesh_smooth(which_faces)
-        return export_mesh(mesh, basename, autoname_using_folder, file_type)
+        export_mesh(mesh, basename, autoname_using_folder, file_type)
 
 
 
@@ -1074,36 +1023,30 @@ class Surface(Decomposition):
 
 
 
-    def solidify_raw(self, distance=_default_solidify_thickness, which_faces=None, basename=_default_surface_basename_raw+'solidified', autoname_using_folder=False, file_type=_default_file_type):
+    def solidify_raw(self, distance=0.1, which_faces=None, basename='br_surface_solidified_raw', autoname_using_folder=False, file_type='stl'):
         """
         Solidify raw version of surface.
 
-        Available formats include {'stl', 'obj'}.
-        Default file format given by `_default_file_type`
-
-        returns the name of the file which was saved
+        Default format is `stl`.  Also can do `obj`.
         """
 
         mesh = self.as_mesh_raw(which_faces)
         solid = solidify_mesh(mesh,distance)
-        return export_mesh(solid, basename, autoname_using_folder, file_type)
+        export_mesh(solid, basename, autoname_using_folder, file_type)
 
 
 
 
-    def solidify_smooth(self, distance=_default_solidify_thickness, which_faces=None, basename=_default_surface_basename_raw+'solidified', autoname_using_folder=False, file_type=_default_file_type):
+    def solidify_smooth(self, distance=0.1, which_faces=None, basename='br_surface_solidified_smooth', autoname_using_folder=False, file_type='stl'):
         """
         Solidify smooth version of surface.  Requires that the surface has been sampled using `sampler`
 
-        Available formats include {'stl', 'obj'}.
-        Default file format given by `_default_file_type`
-
-        returns the name of the file which was saved
+        Default format is `stl`.  Also can do `obj`.
         """
 
         mesh = self.as_mesh_smooth(which_faces)
         solid = solidify_mesh(mesh,distance)
-        return export_mesh(solid, basename, autoname_using_folder, file_type)
+        export_mesh(solid, basename, autoname_using_folder, file_type)
 
 
 
